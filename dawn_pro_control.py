@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read and control settings on a Moondrop Dawn Pro via USB."""
 
+import fcntl
 import os
 import sys
 import time
@@ -51,7 +52,6 @@ if dev is None:
 def query(cmd):
     payload = bytes([0xC0, 0xA5, cmd, 0, 0, 0, 0])
     dev.ctrl_transfer(0x43, 0xA0, 0, 0x09A0, payload)
-    time.sleep(0.1)
     return dev.ctrl_transfer(0xC3, 0xA1, 0, 0x09A0, 7)
 
 
@@ -74,6 +74,12 @@ def get_settings():
 def label(names, index):
     return names[index] if index < len(names) else f"Unknown ({index})"
 
+
+_lock = open("/tmp/dawn-pro-control.lock", "w")
+try:
+    fcntl.flock(_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except BlockingIOError:
+    raise SystemExit(0)
 
 args = sys.argv[1:]
 
@@ -123,6 +129,7 @@ elif args[0] == "set":
                 die("Volume must be 0-100")
         atten = 0xFF if value == 0 else 100 - value
         send(0x04, atten)
+        time.sleep(0.01)
         print(value)
     else:
         try:
