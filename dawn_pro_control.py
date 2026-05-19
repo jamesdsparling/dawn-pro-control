@@ -26,7 +26,7 @@ Usage:
   {_prog} set <option> <value> Set one setting
 
 Options:
-  vol     0-100
+  vol     0-100 or N+/N- for relative adjustment
   filter  0  Fast Roll-off Low Latency
           1  Fast Roll-off Phase Compensated
           2  Slow Roll-off Low Latency
@@ -107,29 +107,45 @@ elif args[0] == "set":
     if len(args) != 3:
         die("'set' requires an option name and a value")
     opt, raw = args[1], args[2]
-    try:
-        value = int(raw)
-    except ValueError:
-        die(f"Value must be an integer, got '{raw}'")
     if opt == "vol":
-        if not 0 <= value <= 100:
-            die("Volume must be 0-100")
+        if raw and raw[-1] in ("+", "-"):
+            try:
+                delta = int(raw[-1] + raw[:-1])
+            except ValueError:
+                die(f"Volume increment must be an integer, got '{raw}'")
+            value = max(0, min(100, get_vol() + delta))
+        else:
+            try:
+                value = int(raw)
+            except ValueError:
+                die(f"Value must be an integer, got '{raw}'")
+            if not 0 <= value <= 100:
+                die("Volume must be 0-100")
         atten = 0xFF if value == 0 else 100 - value
         send(0x04, atten)
-    elif opt == "filter":
-        if not 0 <= value <= 3:
-            die("Filter must be 0-3")
-        send(0x01, value)
-    elif opt == "gain":
-        if not 0 <= value <= 1:
-            die("Gain must be 0-1")
-        send(0x02, value)
-    elif opt == "led":
-        if not 0 <= value <= 2:
-            die("LED must be 0-2")
-        send(0x06, value)
+        print(value)
     else:
-        die(f"Unknown option '{opt}'")
+        try:
+            value = int(raw)
+        except ValueError:
+            die(f"Value must be an integer, got '{raw}'")
+        if opt == "filter":
+            if not 0 <= value <= 3:
+                die("Filter must be 0-3")
+            send(0x01, value)
+            print(label(FILTER_NAMES, value))
+        elif opt == "gain":
+            if not 0 <= value <= 1:
+                die("Gain must be 0-1")
+            send(0x02, value)
+            print(label(GAIN_NAMES, value))
+        elif opt == "led":
+            if not 0 <= value <= 2:
+                die("LED must be 0-2")
+            send(0x06, value)
+            print(label(LED_NAMES, value))
+        else:
+            die(f"Unknown option '{opt}'")
 
 else:
     die(f"Unknown command '{args[0]}'")
